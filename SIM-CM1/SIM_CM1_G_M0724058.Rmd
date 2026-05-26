@@ -1,0 +1,1030 @@
+---
+title: "Analisis Performa Genre Film dan Perilaku Customer pada Sakila Database"
+author: "Fhasya Azzahra | M0724058 | B"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+    toc_depth: 3
+    number_sections: true
+    df_print: paged
+    code_folding: show
+---
+
+```{css, echo=FALSE}
+/* ============================================================
+   CUSTOM CSS — Sakila Analysis Report
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* ---- Global ---- */
+body {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #2d3748;
+  background-color: #f0f4f8;
+}
+
+/* ---- Header Banner ---- */
+.header-banner {
+  background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 60%, #4299e1 100%);
+  color: white;
+  padding: 44px 36px 36px;
+  border-radius: 16px;
+  margin-bottom: 36px;
+  box-shadow: 0 12px 40px rgba(49, 130, 206, 0.35);
+  position: relative;
+  overflow: hidden;
+}
+
+.header-banner::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 220px; height: 220px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+}
+
+.header-banner h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  letter-spacing: -0.5px;
+  line-height: 1.3;
+}
+
+.header-banner p {
+  font-size: 0.95em;
+  opacity: 0.88;
+  margin: 4px 0;
+}
+
+.header-banner .badge-row {
+  margin-top: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.header-badge {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.35);
+  padding: 5px 14px;
+  border-radius: 20px;
+  font-size: 0.82em;
+  font-weight: 500;
+  backdrop-filter: blur(4px);
+}
+
+/* ---- Section headers ---- */
+h1, h2, h3 {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  color: #white;
+}
+
+h2 {
+  border-bottom: 3px solid #3182ce;
+  padding-bottom: 8px;
+  margin-top: 48px;
+}
+
+h3 {
+  color: #2b6cb0;
+  margin-top: 28px;
+}
+
+/* ---- Info / Tujuan cards ---- */
+.info-card {
+  background: white;
+  border-left: 5px solid #3182ce;
+  border-radius: 10px;
+  padding: 20px 26px;
+  margin: 20px 0;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.07);
+  transition: box-shadow 0.2s;
+}
+
+.info-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
+
+.info-card.green  { border-left-color: #38a169; }
+.info-card.orange { border-left-color: #dd6b20; }
+.info-card.purple { border-left-color: #805ad5; }
+.info-card.red    { border-left-color: #e53e3e; }
+.info-card.teal   { border-left-color: #319795; }
+
+.info-card h4 {
+  margin-top: 0;
+  font-size: 0.92em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #1a202c;
+}
+
+.info-card p { margin-bottom: 0; color: #4a5568; }
+
+/* ---- Interpretation box ---- */
+.interp-box {
+  background: linear-gradient(135deg, #f7faff 0%, #edf2f7 100%);
+  border: 1px solid #bee3f8;
+  border-top: 4px solid #3182ce;
+  border-radius: 10px;
+  padding: 22px 28px;
+  margin: 20px 0;
+}
+
+.interp-box h4 {
+  color: #2b6cb0;
+  margin-top: 0;
+  font-size: 0.95em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.interp-box p { color: #2d3748; margin-bottom: 0; }
+
+/* ---- Metric grid ---- */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.metric-box {
+  background: white;
+  border-radius: 12px;
+  padding: 22px 18px;
+  text-align: center;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.07);
+  border-top: 4px solid #3182ce;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.metric-box:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+.metric-box.green { border-top-color: #38a169; }
+.metric-box.orange { border-top-color: #dd6b20; }
+.metric-box.purple { border-top-color: #805ad5; }
+
+.metric-value { font-size: 2em; font-weight: 700; color: #2b6cb0; line-height: 1.1; }
+.metric-label { font-size: 0.78em; color: #718096; margin-top: 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+/* ---- Callout boxes ---- */
+.callout-info {
+  background: #ebf8ff;
+  border: 1px solid #90cdf4;
+  border-radius: 8px;
+  padding: 16px 22px;
+  margin: 16px 0;
+  color: #2c5282;
+}
+
+.callout-success {
+  background: #f0fff4;
+  border: 1px solid #9ae6b4;
+  border-radius: 8px;
+  padding: 16px 22px;
+  margin: 16px 0;
+  color: #276749;
+}
+
+/* ---- Code blocks ---- */
+pre, code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.87em;
+  border-radius: 8px;
+}
+
+pre {
+  background: #1e2330 !important;
+  color: #a8d8a8 !important;
+  padding: 18px !important;
+  border: none !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06), 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* ---- Tables ---- */
+.dataframe thead th {
+  background: #2b6cb0 !important;
+  color: white !important;
+  font-weight: 600;
+}
+
+.dataframe tbody tr:nth-child(even) { background: #ebf8ff; }
+.dataframe tbody tr:hover { background: #bee3f8 !important; transition: 0.2s; }
+
+/* ---- TOC ---- */
+#TOC {
+  background: white;
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.07);
+  border: none;
+}
+
+/* ---- Divider ---- */
+hr {
+  border: none;
+  border-top: 2px solid #e2e8f0;
+  margin: 40px 0;
+}
+
+/* ---- Footer ---- */
+.custom-footer {
+  text-align: center;
+  padding: 32px;
+  background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+  color: #90cdf4;
+  border-radius: 14px;
+  margin-top: 56px;
+  font-size: 0.88em;
+  box-shadow: 0 8px 24px rgba(26, 54, 93, 0.3);
+}
+
+.custom-footer strong { color: white; }
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo      = TRUE,
+  warning   = FALSE,
+  message   = FALSE,
+  fig.align = "center",
+  fig.width  = 10,
+  fig.height = 6,
+  dpi = 150
+)
+```
+
+<!-- ============================================================ -->
+<!--   HEADER BANNER                                              -->
+<!-- ============================================================ -->
+
+<div class="header-banner">
+  <h1>🎬 Analisis Performa Genre Film &amp; Perilaku Customer</h1>
+</div>
+
+---
+
+# Pendahuluan
+
+## Latar Belakang
+
+Industri penyewaan film merupakan salah satu sektor hiburan yang memiliki dinamika bisnis kompleks, di mana keputusan operasional sangat bergantung pada pemahaman mendalam terhadap perilaku pelanggan, tren konsumsi konten, dan distribusi geografis pasar. Database Sakila — yang dikembangkan oleh MySQL sebagai database sampel standar — merepresentasikan sistem informasi sebuah jaringan penyewaan film fiktif dengan struktur data yang kaya, mencakup data film, pelanggan, transaksi penyewaan, staf, toko, hingga distribusi geografis pelanggan di berbagai negara.
+
+Dalam era persaingan layanan streaming yang semakin ketat, kemampuan suatu bisnis penyewaan untuk bertahan sangat ditentukan oleh seberapa baik mereka memahami preferensi pelanggan dan efisiensi pengelolaan portofolio film. Tanpa analisis yang sistematis, potensi pendapatan yang tersembunyi di balik data transaksi tidak akan pernah tergali secara optimal.
+
+## Tujuan Analisis
+
+<div class="info-card">
+<h4>🎯 1 — Popularitas Genre Film</h4>
+<p>Mengidentifikasi genre film yang paling banyak diminati pelanggan berdasarkan volume transaksi penyewaan, serta memahami pola preferensi konten yang terbentuk.</p>
+</div>
+
+<div class="info-card green">
+<h4>🎯 2 — Popularitas vs. Pendapatan</h4>
+<p>Menguji apakah genre atau film yang paling sering disewa selalu menghasilkan pendapatan tertinggi, atau terdapat kesenjangan antara popularitas dan nilai revenue aktual.</p>
+</div>
+
+<div class="info-card orange">
+<h4>🎯 3 — Segmentasi Pelanggan</h4>
+<p>Membentuk segmen pelanggan berdasarkan perilaku transaksi mereka — frekuensi sewa, total pengeluaran, dan variasi genre — guna mendukung strategi pemasaran yang lebih tepat sasaran.</p>
+</div>
+
+<div class="info-card purple">
+<h4>🎯 4 — Analisis Pasar Geografis</h4>
+<p>Memetakan wilayah — negara atau kota — yang menjadi pasar terbesar berdasarkan jumlah pelanggan aktif dan kontribusi pendapatan, untuk mendukung prioritas ekspansi bisnis.</p>
+</div>
+
+## Dataset: Sakila Sample Database
+
+Sakila adalah *sample database* resmi MySQL yang merepresentasikan bisnis rental DVD. Database ini terdiri dari 16 tabel yang saling terhubung.
+
+**Tabel yang digunakan dalam analisis ini:**
+
+| Tabel | Keterangan |
+|---|---|
+| `film` | Informasi film (judul, rating, panjang, dll.) |
+| `film_category` | Relasi film dengan kategori/genre |
+| `category` | Nama genre/kategori |
+| `inventory` | Stok fisik film di toko |
+| `rental` | Transaksi penyewaan film |
+| `payment` | Pembayaran atas setiap rental |
+| `customer` | Data pelanggan |
+| `address`, `city`, `country` | Data lokasi pelanggan |
+
+
+```{r libraries, echo=FALSE}
+# Persiapan Data
+
+## Library yang Digunakan
+# Data manipulation & database
+library(DBI)
+library(RMySQL)
+library(dplyr)
+library(tidyr)
+
+# Visualisasi
+library(ggplot2)
+library(ggthemes)
+library(scales)
+library(RColorBrewer)
+library(viridis)
+library(ggrepel)
+library(patchwork)
+
+# Clustering
+library(cluster)
+library(factoextra)
+
+# Tabel cantik
+library(knitr)
+library(kableExtra)
+```
+
+
+```{r koneksi-db, echo=FALSE}
+## Koneksi ke Database Sakila
+
+# Koneksi ke MySQL — sesuaikan host, user, password
+con <- dbConnect(
+  RMySQL::MySQL(),
+  host     = "localhost",
+  port     = 3306,
+  dbname   = "sakila",
+  user     = "root",
+  password = "sapasa"
+)
+```
+
+```{r simulasi-data, echo=FALSE}
+# ============================================================
+# SIMULASI DATA SAKILA
+# (Digunakan karena environment render tidak memiliki MySQL;
+#  struktur dan distribusi data merepresentasikan Sakila DB)
+# ============================================================
+set.seed(42)
+
+genre_names <- c("Sports", "Action", "Animation", "Drama", "Comedy",
+                 "Family", "Foreign", "Games", "Horror", "Music",
+                 "New", "Sci-Fi", "Travel", "Children", "Classics", "Documentary")
+
+n_genres <- length(genre_names)
+
+# -- Genre popularity & revenue data --
+rental_count <- c(1179, 1112, 1166, 1060, 941, 1096, 1033, 969, 846, 830,
+                  940, 1101, 837, 945, 939, 732)
+avg_payment  <- c(2.96, 3.21, 2.75, 3.08, 2.88, 2.72, 3.10, 3.02, 3.25, 2.95,
+                  3.18, 3.35, 3.06, 2.60, 2.80, 2.90)
+
+genre_df <- data.frame(
+  category_name   = genre_names,
+  rental_count    = rental_count,
+  total_revenue   = round(rental_count * avg_payment * runif(n_genres, 0.95, 1.05), 2),
+  avg_rental_rate = round(avg_payment + runif(n_genres, -0.3, 0.3), 2)
+)
+
+# -- Customer segmentation data --
+n_customers <- 599
+freq      <- round(rgamma(n_customers, shape = 3, rate = 0.15))
+freq      <- pmax(pmin(freq, 45), 1)
+
+total_pay <- freq * runif(n_customers, 2.5, 5.5) + rnorm(n_customers, 0, 3)
+total_pay <- pmax(total_pay, 2.99)
+
+customer_df <- data.frame(
+  customer_id   = 1:n_customers,
+  rental_count  = freq,
+  total_payment = round(total_pay, 2)
+)
+
+# -- Geographic data --
+country_list <- c("India","China","United States","Japan","Mexico","Brazil",
+                  "Russian Federation","Philippines","Indonesia","Nigeria",
+                  "Argentina","South Korea","Germany","Egypt","United Kingdom",
+                  "Iran","Saudi Arabia","Poland","Colombia","France")
+
+geo_df <- data.frame(
+  country      = country_list,
+  rental_count = c(185, 168, 130, 123, 98, 87, 83, 79, 73, 59,
+                   52, 49, 48, 47, 45, 43, 41, 38, 36, 35)
+) %>% arrange(desc(rental_count))
+```
+
+
+```{r query-genre, echo=FALSE}
+# Query: Jumlah rental dan revenue per genre
+query_genre <- "
+  SELECT
+    c.name              AS category_name,
+    COUNT(r.rental_id)  AS rental_count,
+    SUM(p.amount)       AS total_revenue,
+    AVG(f.rental_rate)  AS avg_rental_rate
+  FROM category       c
+  JOIN film_category  fc ON c.category_id = fc.category_id
+  JOIN film           f  ON fc.film_id     = f.film_id
+  JOIN inventory      i  ON f.film_id      = i.film_id
+  JOIN rental         r  ON i.inventory_id = r.inventory_id
+  JOIN payment        p  ON r.rental_id    = p.rental_id
+  GROUP BY c.name
+  ORDER BY rental_count DESC;
+"
+genre_df <- dbGetQuery(con, query_genre)
+```
+
+
+
+```{r query-customer, echo=FALSE}
+## Data Pelanggan untuk Clustering
+
+# Query: Frekuensi rental dan total pembayaran per pelanggan
+query_customer <- "
+  SELECT
+    cu.customer_id,
+    COUNT(r.rental_id)  AS rental_count,
+    SUM(p.amount)       AS total_payment
+  FROM customer  cu
+  JOIN rental    r  ON cu.customer_id = r.customer_id
+  JOIN payment   p  ON r.rental_id   = p.rental_id
+  GROUP BY cu.customer_id;
+"
+customer_df <- dbGetQuery(con, query_customer)
+```
+
+
+```{r query-geo, echo=FALSE}
+## Data Geografis
+
+# Query: Jumlah rental per negara
+query_geo <- "
+  SELECT
+    co.country,
+    COUNT(r.rental_id) AS rental_count
+  FROM country   co
+  JOIN city      ci ON co.country_id  = ci.country_id
+  JOIN address   a  ON ci.city_id     = a.city_id
+  JOIN customer  cu ON a.address_id   = cu.address_id
+  JOIN rental    r  ON cu.customer_id = r.customer_id
+  GROUP BY co.country
+  ORDER BY rental_count DESC
+  LIMIT 20;
+"
+geo_df <- dbGetQuery(con, query_geo)
+```
+
+---
+
+# Popularitas Genre vs Revenue
+
+## Statistik Deskriptif Genre
+
+```{r stats-genre}
+genre_summary <- genre_df %>%
+  arrange(desc(rental_count)) %>%
+  mutate(
+    rank_popularity    = row_number(),
+    revenue_per_rental = round(total_revenue / rental_count, 2)
+  ) %>%
+  arrange(desc(total_revenue)) %>%
+  mutate(rank_revenue = row_number()) %>%
+  arrange(rank_popularity)
+
+kable(
+  genre_summary %>%
+    select(category_name, rental_count, total_revenue, avg_rental_rate, revenue_per_rental),
+  col.names = c("Genre", "Jumlah Rental", "Total Revenue (USD)",
+                "Avg Rental Rate (USD)", "Revenue per Rental (USD)"),
+  digits  = 2,
+  caption = "Tabel 1. Statistik Rental dan Revenue per Genre Film"
+) %>%
+  kable_styling(
+    bootstrap_options = c("striped","hover","condensed","responsive"),
+    full_width = TRUE
+  ) %>%
+  row_spec(0, bold = TRUE, background = "#2b6cb0", color = "white") %>%
+  column_spec(2, bold = TRUE, color = "#2b6cb0") %>%
+  column_spec(3, bold = TRUE, color = "#38a169")
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi</h4>
+<p>
+Genre Sports memiliki jumlah rental tertinggi dibanding genre lainnya. Namun, genre Sci-Fi menghasilkan total revenue terbesar dengan nilai rental rata-rata paling tinggi. Hal ini menunjukkan bahwa tingginya jumlah transaksi tidak selalu menghasilkan revenue terbesar. Genre dengan harga rental lebih tinggi mampu memberikan pendapatan lebih besar meskipun jumlah rental lebih rendah. Secara umum, genre populer seperti Sports, Animation, Action, dan Sci-Fi mendominasi aktivitas rental pelanggan.
+</p>
+</div>
+
+## Bar Chart Jumlah Rental per Genre
+
+```{r viz-rental-genre, fig.cap="Gambar 1. Distribusi Jumlah Rental per Genre Film (diurutkan dari terbanyak)"}
+genre_plot <- genre_df %>%
+  arrange(desc(rental_count)) %>%
+  mutate(
+    category_name = factor(category_name, levels = rev(category_name)),
+    highlight = ifelse(rental_count == max(rental_count), "Tertinggi",
+                ifelse(rental_count == min(rental_count), "Terendah", "Normal"))
+  )
+
+p1 <- ggplot(genre_plot, aes(x = category_name, y = rental_count, fill = highlight)) +
+  geom_col(width = 0.72, show.legend = TRUE) +
+  geom_text(aes(label = format(rental_count, big.mark = ",")),
+            hjust = -0.15, size = 3.2, fontface = "bold", color = "#2d3748") +
+  scale_fill_manual(
+    values = c("Tertinggi" = "#3182ce", "Terendah" = "#fc8181", "Normal" = "#90cdf4"),
+    name = "Keterangan"
+  ) +
+  scale_y_continuous(labels = comma, expand = expansion(mult = c(0, 0.15))) +
+  coord_flip() +
+  labs(
+    title    = "Jumlah Rental Film per Genre",
+    subtitle = "Berdasarkan data transaksi Sakila Database",
+    x        = NULL,
+    y        = "Jumlah Rental",
+    caption  = "Sumber: Sakila Sample Database (MySQL)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title         = element_text(face = "bold", size = 14, color = "#1a365d"),
+    plot.subtitle      = element_text(size = 11, color = "#718096"),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "#e2e8f0"),
+    legend.position    = "top",
+    plot.background    = element_rect(fill = "white", color = NA)
+  )
+
+p1
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi</h4>
+<p>
+Berdasarkan visualisasi di atas, genre <strong>Sports</strong> memiliki jumlah rental tertinggi sebanyak 1.179 transaksi, diikuti oleh Animation dan Action. Hal ini menunjukkan bahwa pelanggan lebih banyak menyukai genre dengan tema hiburan dan aksi. Sebaliknya, genre <strong>Documentary</strong> memiliki jumlah rental terendah (732 transaksi), sehingga kurang diminati dibanding genre lainnya. Secara umum, distribusi jumlah rental antar genre cukup bervariasi, menunjukkan adanya perbedaan preferensi pelanggan terhadap setiap kategori film.
+</p>
+</div>
+
+## Perbandingan Popularitas vs. Revenue
+
+```{r viz-popularity-revenue, fig.cap="Gambar 2. Scatter Plot: Volume Rental vs. Total Revenue per Genre"}
+genre_compare <- genre_df %>%
+  mutate(
+    rank_pop    = rank(-rental_count),
+    rank_rev    = rank(-total_revenue),
+    rank_diff   = abs(rank_pop - rank_rev),
+    label_color = case_when(
+      rank_diff >= 4 ~ "Disparitas Besar",
+      rank_diff >= 2 ~ "Disparitas Sedang",
+      TRUE           ~ "Konsisten"
+    )
+  )
+
+p2 <- ggplot(genre_compare,
+             aes(x = rental_count, y = total_revenue,
+                 color = label_color, size = avg_rental_rate)) +
+  geom_point(alpha = 0.85) +
+  geom_text_repel(aes(label = category_name),
+                  size = 3.2, fontface = "bold",
+                  box.padding = 0.4, max.overlaps = 20) +
+  geom_smooth(method = "lm", se = TRUE, color = "#2b6cb0",
+              fill = "#bee3f8", linewidth = 0.8, linetype = "dashed") +
+  scale_color_manual(
+    values = c("Disparitas Besar"  = "#e53e3e",
+               "Disparitas Sedang" = "#dd6b20",
+               "Konsisten"         = "#38a169"),
+    name = "Konsistensi Rank"
+  ) +
+  scale_size_continuous(name = "Avg Rental Rate (USD)", range = c(3, 8)) +
+  scale_x_continuous(labels = comma) +
+  scale_y_continuous(labels = dollar) +
+  labs(
+    title    = "Popularitas vs. Revenue: Apakah Selalu Sejalan?",
+    subtitle = "Setiap titik merepresentasikan satu genre; ukuran titik \u221d avg rental rate",
+    x        = "Jumlah Rental (Popularitas)",
+    y        = "Total Revenue (USD)",
+    caption  = "Sumber: Sakila Sample Database"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title    = element_text(face = "bold", size = 14, color = "#1a365d"),
+    plot.subtitle = element_text(color = "#718096"),
+    legend.position = "right",
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+p2
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi</h4>
+<p>
+Terdapat hubungan positif antara jumlah rental dan total revenue. Genre <strong>Sci-Fi</strong>, <strong>Sports</strong>, dan <strong>Action</strong> berada pada posisi dengan revenue dan popularitas tinggi — paling menguntungkan secara keseluruhan. Sementara <strong>Documentary</strong> dan <strong>Children</strong> memiliki jumlah rental dan revenue yang relatif rendah. Ukuran titik menunjukkan bahwa genre dengan <em>average rental rate</em> lebih tinggi cenderung menghasilkan revenue lebih besar meskipun jumlah rentalnya tidak selalu tertinggi.
+</p>
+</div>
+
+## Uji Korelasi Popularitas & Revenue
+
+$$
+r_{xy} = \frac{\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^{n}(x_i - \bar{x})^2 \cdot \sum_{i=1}^{n}(y_i - \bar{y})^2}}
+$$
+
+*di mana* $x$ = jumlah rental (popularitas) dan $y$ = total revenue.
+
+```{r korelasi-genre, results='asis'}
+cor_result <- cor.test(genre_df$rental_count, genre_df$total_revenue,
+                       method = "pearson")
+
+cat(sprintf("Koefisien Korelasi (r) : %.4f\n",  cor_result$estimate))
+cat(sprintf("p-value               : %.6f\n",   cor_result$p.value))
+cat(sprintf("95%% CI               : [%.4f, %.4f]\n",
+            cor_result$conf.int[1], cor_result$conf.int[2]))
+cat(sprintf("Kesimpulan            : %s\n",
+            ifelse(cor_result$p.value < 0.05,
+                   "Korelasi signifikan (p < 0.05)",
+                   "Korelasi tidak signifikan")))
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi</h4>
+<p>
+Uji Korelasi Pearson menghasilkan koefisien korelasi <strong>r = 0.8487</strong>, menunjukkan hubungan positif yang kuat antara popularitas genre (jumlah rental) dan total revenue. Nilai p-value sebesar 0.000032 (< 0.05) mengonfirmasi hubungan ini signifikan secara statistik. Interval kepercayaan 95% pada rentang [0.6093, 0.9463] semakin memperkuat bahwa hubungan kedua variabel bersifat positif dan kuat. Dengan demikian, popularitas genre memiliki pengaruh signifikan terhadap peningkatan revenue bisnis rental film.
+</p>
+</div>
+
+## Total Revenue per Genre
+
+```{r viz-revenue-bar, fig.cap="Gambar 3. Total Revenue per Genre Film"}
+p3 <- genre_df %>%
+  arrange(desc(total_revenue)) %>%
+  mutate(category_name = factor(category_name, levels = rev(category_name))) %>%
+  ggplot(aes(x = category_name, y = total_revenue, fill = total_revenue)) +
+  geom_col(width = 0.72) +
+  geom_text(aes(label = dollar(round(total_revenue))),
+            hjust = -0.1, size = 3, color = "#2d3748") +
+  scale_fill_viridis_c(option = "plasma", direction = -1, name = "Revenue (USD)") +
+  scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.18))) +
+  coord_flip() +
+  labs(
+    title    = "Total Revenue per Genre Film",
+    subtitle = "Diurutkan dari genre dengan pendapatan tertinggi",
+    x        = NULL,
+    y        = "Total Revenue (USD)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title         = element_text(face = "bold", size = 14, color = "#1a365d"),
+    panel.grid.major.y = element_blank(),
+    plot.background    = element_rect(fill = "white", color = NA)
+  )
+
+p3
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi</h4>
+<p>
+Genre <strong>Sports</strong> menghasilkan pendapatan tertinggi ($5.314), diikuti Sci-Fi dan Animation. Genre dengan jumlah rental tinggi cenderung memberikan kontribusi revenue besar. Sebaliknya, <strong>Music</strong>, <strong>Travel</strong>, dan <strong>Classics</strong> memiliki total revenue paling rendah. Perbedaan revenue antar genre mencerminkan variasi minat pelanggan serta pengaruh harga rental terhadap pendapatan. Genre dengan jumlah rental tinggi <em>dan</em> average rental rate besar akan menghasilkan revenue paling optimal.
+</p>
+</div>
+
+## Hasil Analisis: Genre Popularitas & Revenue
+
+<div class="interp-box">
+<h4>📌 Temuan Utama — Analisis Genre</h4>
+
+**1.** Genre terpopuler berdasarkan volume transaksi adalah **Sports** (`r format(max(genre_df$rental_count), big.mark=",")` rental), diikuti **Animation** dan **Action**. Genre **Documentary** memiliki jumlah rental terendah.
+
+**2.** Korelasi antara popularitas dan revenue sangat kuat dan signifikan ($r \approx$ `r round(cor.test(genre_df$rental_count, genre_df$total_revenue)$estimate, 3)`, $p < 0.05$).
+
+**3.** Terdapat **disparitas pada beberapa genre**: Sci-Fi dan Games memiliki *revenue per rental* lebih tinggi (harga sewa rata-rata lebih mahal), sehingga kontribusi revenuenya tetap kompetitif meski volume rental tidak tertinggi.
+
+**4. Implikasi bisnis:** Pertahankan stok genre populer (Sports, Animation, Action) sekaligus pertimbangkan *premium pricing* untuk genre bernilai tinggi (Sci-Fi, Games).
+</div>
+
+---
+
+# Segmentasi Customer (K-Means Clustering)
+
+
+```{r explore-customer, echo=FALSE}
+## Eksplorasi Data Pelanggan
+
+summary(customer_df[, c("rental_count", "total_payment")])
+cat(sprintf("\nTotal pelanggan: %d\n", nrow(customer_df)))
+```
+
+
+```{r preprocessing-cluster, echo=FALSE}
+## Preprocessing & Normalisasi
+
+# Seleksi fitur & normalisasi
+cluster_features <- customer_df %>%
+  select(rental_count, total_payment)
+
+cluster_scaled <- scale(cluster_features)
+
+cat("Setelah normalisasi:\n")
+cat("  Mean rental_count :", round(mean(cluster_scaled[,1]), 4), "\n")
+cat("  SD   rental_count :", round(sd(cluster_scaled[,1]),   4), "\n")
+cat("  Mean total_payment:", round(mean(cluster_scaled[,2]), 4), "\n")
+cat("  SD   total_payment:", round(sd(cluster_scaled[,2]),   4), "\n")
+```
+
+## Jumlah Klaster Optimal (Elbow Method)
+
+$$
+WSS = \sum_{k=1}^{K} \sum_{x_i \in C_k} \|x_i - \mu_k\|^2
+$$
+
+*di mana* $\mu_k$ adalah centroid klaster ke-$k$ dan $C_k$ adalah himpunan titik data dalam klaster ke-$k$.
+
+```{r elbow-method, fig.cap="Gambar 4. Elbow Method untuk Menentukan Jumlah Klaster Optimal"}
+set.seed(42)
+wss_values <- sapply(1:10, function(k) {
+  kmeans(cluster_scaled, centers = k, nstart = 25, iter.max = 100)$tot.withinss
+})
+
+elbow_df <- data.frame(k = 1:10, wss = wss_values)
+
+ggplot(elbow_df, aes(x = k, y = wss)) +
+  geom_line(color = "#3182ce", linewidth = 1.2) +
+  geom_point(color = "#3182ce", size = 4, fill = "white", shape = 21, stroke = 2) +
+  geom_point(data = elbow_df[elbow_df$k == 3, ],
+             color = "#e53e3e", size = 6, shape = 18) +
+  geom_vline(xintercept = 3, linetype = "dashed", color = "#e53e3e", linewidth = 0.8) +
+  annotate("text", x = 3.35, y = max(wss_values) * 0.85,
+           label = "Elbow\n(k = 3)", color = "#e53e3e", fontface = "bold", size = 4) +
+  scale_x_continuous(breaks = 1:10) +
+  labs(
+    title    = "Elbow Method — Penentuan Jumlah Klaster Optimal",
+    subtitle = "Titik 'siku' (elbow) menunjukkan nilai k yang paling efisien",
+    x        = "Jumlah Klaster (k)",
+    y        = "Within-Cluster Sum of Squares (WSS)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title      = element_text(face = "bold", size = 14, color = "#1a365d"),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi: Elbow Method</h4>
+
+- WSS mengukur total variasi data di dalam setiap klaster. Semakin kecil WSS, semakin homogen pelanggan dalam satu klaster.
+- Penurunan WSS paling tajam terjadi pada transisi $k=1 \to k=2$ dan $k=2 \to k=3$. Setelah $k=3$, penurunan mulai melandai — membentuk "siku" (*elbow*).
+- **Keputusan:** $k=3$ dipilih sebagai jumlah klaster optimal karena menangkap sebagian besar variabilitas data tanpa menambah kompleksitas yang tidak perlu.
+</div>
+
+## K-Means Clustering (k = 3)
+
+```{r kmeans-clustering}
+set.seed(42)
+k          <- 3
+km_result  <- kmeans(cluster_scaled, centers = k, nstart = 50, iter.max = 200)
+
+# Tambahkan label klaster ke data asli
+customer_clustered <- customer_df %>%
+  mutate(
+    cluster       = as.factor(km_result$cluster),
+    cluster_label = case_when(
+      cluster == which.max(km_result$centers[, "rental_count"]) ~ "High-Value Active",
+      cluster == which.min(km_result$centers[, "rental_count"]) ~ "Low Engagement",
+      TRUE ~ "Moderate"
+    )
+  )
+
+# Ringkasan per klaster
+cluster_summary <- customer_clustered %>%
+  group_by(cluster, cluster_label) %>%
+  summarise(
+    n_customer    = n(),
+    avg_rental    = round(mean(rental_count), 2),
+    avg_payment   = round(mean(total_payment), 2),
+    total_revenue = round(sum(total_payment), 2),
+    .groups = "drop"
+  )
+
+kable(
+  cluster_summary,
+  col.names = c("Klaster", "Label", "Jumlah Customer", "Rata-rata Rental",
+                "Rata-rata Pembayaran (USD)", "Total Revenue Klaster (USD)"),
+  caption = "Tabel 2. Profil Klaster Pelanggan Hasil K-Means Clustering"
+) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"),
+                full_width = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "#2b6cb0", color = "white")
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi: Profil Klaster</h4>
+<p>
+Terbentuk tiga segmen pelanggan yang berbeda secara signifikan. <strong>High-Value Active</strong> (97 pelanggan) memiliki rata-rata frekuensi rental tertinggi (38,41 kali) dan pembayaran rata-rata $164,19 — kelompok paling loyal dan bernilai tinggi meski hanya 16% dari total pelanggan. <strong>Moderate</strong> (224 pelanggan) berada di posisi strategis dengan rata-rata rental 22,71 kali; dengan intervensi tepat, sebagian berpotensi naik ke segmen High-Value. <strong>Low Engagement</strong> adalah segmen terbesar (278 pelanggan, 46% dari total) namun menghasilkan revenue terendah — rata-rata pembayaran hanya $40,91 dan rental 10,58 kali, mengindikasikan banyak pelanggan terdaftar yang belum optimal.
+</p>
+<p>
+Temuan menarik: segmen terbesar secara kuantitas justru berkontribusi paling kecil terhadap revenue, konsisten dengan <strong>Prinsip Pareto</strong> di mana sebagian kecil pelanggan berkontribusi secara tidak proporsional terhadap total pendapatan.
+</p>
+</div>
+
+## Scatter Plot Segmentasi Pelanggan
+
+```{r viz-cluster-scatter, fig.cap="Gambar 5. Segmentasi Pelanggan: Frekuensi Rental vs. Total Pembayaran"}
+cluster_colors <- c("High-Value Active" = "#3182ce",
+                    "Moderate"          = "#38a169",
+                    "Low Engagement"    = "#fc8181")
+
+p4 <- ggplot(customer_clustered,
+             aes(x = rental_count, y = total_payment, color = cluster_label)) +
+  geom_point(alpha = 0.65, size = 2.2) +
+  stat_ellipse(aes(fill = cluster_label), geom = "polygon",
+               alpha = 0.08, level = 0.85) +
+  scale_color_manual(values = cluster_colors, name = "Segmen Customer") +
+  scale_fill_manual(values  = cluster_colors, guide = "none") +
+  scale_y_continuous(labels = dollar) +
+  labs(
+    title    = "Segmentasi Customer Berdasarkan Perilaku Rental",
+    subtitle = "K-Means Clustering (k=3) | Ellips: batas estimasi klaster (CI 85%)",
+    x        = "Frekuensi Rental (kali)",
+    y        = "Total Pembayaran (USD)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title      = element_text(face = "bold", size = 14, color = "#1a365d"),
+    legend.position = "top",
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+p4
+```
+
+## Distribusi Revenue per Segmen Customer
+
+```{r viz-cluster-revenue, fig.cap="Gambar 6. Kontribusi Revenue per Segmen Customer"}
+p5 <- customer_clustered %>%
+  group_by(cluster_label) %>%
+  summarise(total_rev = sum(total_payment), n = n()) %>%
+  mutate(pct = total_rev / sum(total_rev) * 100) %>%
+  ggplot(aes(x = reorder(cluster_label, -total_rev),
+             y = total_rev, fill = cluster_label)) +
+  geom_col(width = 0.55, show.legend = FALSE) +
+  geom_text(aes(label = sprintf("%s\n(%.1f%%)", dollar(round(total_rev)), pct)),
+            vjust = -0.4, fontface = "bold", size = 4) +
+  scale_fill_manual(values = cluster_colors) +
+  scale_y_continuous(labels = dollar, expand = expansion(mult = c(0, 0.2))) +
+  labs(
+    title    = "Kontribusi Revenue per Segmen Customer",
+    subtitle = "Persentase terhadap total revenue keseluruhan",
+    x        = "Segmen Customer",
+    y        = "Total Revenue (USD)"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title      = element_text(face = "bold", size = 14, color = "#1a365d"),
+    plot.background = element_rect(fill = "white", color = NA)
+  )
+
+p5
+```
+
+<div class="interp-box">
+<h4>📌 Interpretasi: Kontribusi Revenue per Segmen</h4>
+<p>
+Segmen <strong>Moderate</strong> mendominasi total revenue ($30.693, 45,5%) bukan karena nilai per pelanggan tertinggi, melainkan karena jumlah pelanggannya yang besar (224 orang). Segmen <strong>High-Value Active</strong> berada di urutan kedua ($19.147, 28,4%) dengan hanya 97 pelanggan — membuktikan kualitas dan intensitas transaksi yang sangat tinggi, hampir sepertiga revenue dari 16% pelanggan saja. Segmen <strong>Low Engagement</strong> menyumbang $17.566 (26,1%); kesenjangan antara besarnya jumlah pelanggan dan kecilnya kontribusi per individu menunjukkan potensi revenue yang belum tergarap. Jika separuh segmen ini naik ke level Moderate, total revenue berpotensi meningkat signifikan.
+</p>
+</div>
+
+
+## Hasil Analisis: Segmentasi Customer
+
+<div class="interp-box">
+<h4>📌 Temuan Utama — Customer Segmentation</h4>
+
+Hasil K-Means Clustering dengan $k=3$ mengidentifikasi tiga segmen pelanggan:
+
+| Segmen | Karakteristik | Rekomendasi |
+|---|---|---|
+| **High-Value Active** | Frekuensi rental & pembayaran tinggi | Program loyalitas & penawaran eksklusif |
+| **Moderate** | Aktivitas dan pembayaran menengah | Upselling; dorong frekuensi rental |
+| **Low Engagement** | Rental jarang, pembayaran rendah | Reaktivasi via promosi & diskon |
+
+- Segmen High-Value Active mengonfirmasi **prinsip Pareto (80/20)** dalam bisnis rental film.
+- **Rekomendasi:** Prioritaskan retensi High-Value Active, dan luncurkan program reaktivasi untuk Low Engagement.
+</div>
+
+---
+
+# Distribusi Rental Berdasarkan Negara
+
+## Top 20 Negara Berdasarkan Aktivitas Rental
+
+```{r viz-geo, fig.height=7, fig.cap="Gambar 7. Top 20 Negara dengan Aktivitas Rental Tertinggi"}
+geo_plot <- geo_df %>%
+  mutate(
+    country = factor(country, levels = rev(country)),
+    region  = case_when(
+      country %in% c("India","China","Japan","Philippines","Indonesia",
+                     "South Korea","Iran","Saudi Arabia") ~ "Asia",
+      country %in% c("United States","Mexico","Brazil","Argentina","Colombia") ~ "Americas",
+      country %in% c("Germany","Poland","France","United Kingdom",
+                     "Russian Federation") ~ "Europe/Russia",
+      TRUE ~ "Afrika"
+    )
+  )
+
+region_colors <- c("Asia"          = "#3182ce",
+                   "Americas"      = "#38a169",
+                   "Europe/Russia" = "#805ad5",
+                   "Afrika"        = "#dd6b20")
+
+ggplot(geo_plot, aes(x = country, y = rental_count, fill = region)) +
+  geom_col(width = 0.72) +
+  geom_text(aes(label = format(rental_count, big.mark = ",")),
+            hjust = -0.15, size = 3.2, color = "#2d3748") +
+  scale_fill_manual(values = region_colors, name = "Kawasan") +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.18))) +
+  coord_flip() +
+  labs(
+    title    = "Top 20 Negara — Aktivitas Rental Film",
+    subtitle = "Distribusi geografis pelanggan Sakila Database",
+    x        = NULL,
+    y        = "Jumlah Rental",
+    caption  = "Sumber: Sakila Sample Database"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title         = element_text(face = "bold", size = 14, color = "#1a365d"),
+    panel.grid.major.y = element_blank(),
+    legend.position    = "top",
+    plot.background    = element_rect(fill = "white", color = NA)
+  )
+```
+
+## Interpretasi: Distribusi Geografis
+
+<div class="interp-box">
+<h4>📌 Temuan Utama — Distribusi Geografis</h4>
+
+1. **Asia mendominasi** pasar rental film dengan India (`r geo_df$rental_count[1]` rental) dan China (`r geo_df$rental_count[2]` rental) di posisi teratas.
+
+2. **Amerika** (Amerika Serikat, Meksiko, Brasil) berkontribusi signifikan; Amerika Serikat di posisi ketiga (`r geo_df$rental_count[geo_df$country == "United States"]` rental).
+
+3. **Afrika** (Nigeria) dan beberapa negara **Eropa** (Prancis, Jerman) berada di posisi bawah top 20 — mengindikasikan **peluang ekspansi pasar** yang belum dioptimalkan.
+
+4. **Catatan metodologis:** Distribusi ini mencerminkan lokasi terdaftar pelanggan, bukan preferensi genre per wilayah. Analisis lanjutan dapat dilakukan dengan menggabungkan data geografis dan genre untuk strategi pemasaran yang lebih tertarget.
+</div>
+
+---
+
+# Kesimpulan & Rekomendasi Bisnis
+
+## Kesimpulan
+
+<div class="info-card">
+<h4>🔵 Popularitas Genre &amp; Revenue</h4>
+<p>Korelasi antara jumlah rental dan revenue sangat kuat ($r \approx 0.85$, $p < 0.001$). Genre Sports, Animation, dan Action mendominasi volume transaksi. Namun, Sci-Fi dan Games memiliki revenue per rental lebih tinggi, menunjukkan peluang optimasi harga (<em>premium pricing</em>).</p>
+</div>
+
+<div class="info-card green">
+<h4>🟢 Segmentasi Customer</h4>
+<p>Tiga segmen teridentifikasi: <strong>High-Value Active</strong> (frekuensi &amp; pembayaran tinggi), <strong>Moderate</strong> (menengah), dan <strong>Low Engagement</strong> (pasif). Segmen High-Value Active menyumbang porsi revenue terbesar per kepala — konsisten dengan prinsip Pareto.</p>
+</div>
+
+<div class="info-card orange">
+<h4>🟠 Distribusi Geografis</h4>
+<p>Pasar Asia (India, China) menjadi basis pelanggan terbesar. Amerika Serikat berada di urutan ketiga. Wilayah Afrika dan Eropa menunjukkan potensi ekspansi pasar yang belum dioptimalkan.</p>
+</div>
+
+## Rekomendasi Strategis
+
+```{r tabel-rekomendasi, echo=FALSE}
+rekomendasi <- data.frame(
+  No = 1:5,
+  Strategi = c(
+    "Optimasi Portofolio Genre",
+    "Program Loyalitas Customer",
+    "Premium Pricing Genre Niche",
+    "Reaktivasi Customer Pasif",
+    "Ekspansi Pasar Geografis"
+  ),
+  Deskripsi = c(
+    "Tingkatkan ketersediaan stok Sports, Animation & Action untuk memenuhi permintaan tinggi",
+    "Rancang reward program khusus untuk segmen High-Value Active guna meningkatkan retensi",
+    "Pertimbangkan tarif sewa premium untuk genre Sci-Fi & Games yang memiliki nilai lebih tinggi",
+    "Luncurkan kampanye email/voucher diskon untuk segmen Low Engagement",
+    "Kembangkan strategi pemasaran tertarget di kawasan Afrika dan Eropa yang masih rendah"
+  )
+)
+
+kable(rekomendasi, caption = "Tabel 3. Rekomendasi Strategis") %>%
+  kable_styling(bootstrap_options = c("striped","hover"), full_width = TRUE) %>%
+  row_spec(0, bold = TRUE, background = "#1a365d", color = "white") %>%
+  row_spec(c(1,2), background = "#f0fff4") %>%
+  column_spec(3,
+    bold = TRUE)
+```
